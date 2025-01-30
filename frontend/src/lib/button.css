@@ -1,0 +1,3 @@
+.btn {
+    @apply h-8 w-20 rounded-md bg-blue-500 transition hover:scale-110 active:scale-105;
+}
