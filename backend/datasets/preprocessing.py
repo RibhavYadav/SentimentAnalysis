@@ -1,7 +1,5 @@
-import torch
 import pandas as pd
 from collections import Counter
-from torch.utils.data import Dataset
 from nltk.tokenize import word_tokenize
 
 # Load data and tokenize text
