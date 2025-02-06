@@ -28,4 +28,4 @@ def text_pipline(tokens):
 df["input_ids"] = df["tokens"].apply(text_pipline)
 
 # Save processed data
-df.to_csv("IMDB-Processed.csv", index=False)
+df.to_json("IMDB-Processed.json", orient="records", lines=True)
