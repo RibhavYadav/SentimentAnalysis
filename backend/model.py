@@ -49,7 +49,7 @@ class SentimentModel(nn.Module):
 
 
 # Create and train
-print("Starting Model")
+print("Initialising Model")
 model = SentimentModel(len(vocab), 100, 128)
 criterion = nn.BCELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -57,8 +57,8 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 model.to(device)
 criterion.to(device)
 
-print("Training")
-for epoch in range(1):
+print("Starting Evaluation\n")
+for epoch in range(10):
     model.train()
     loss = 0
     for texts, labels in train_loader:
@@ -69,20 +69,19 @@ for epoch in range(1):
         loss.backward()
         optimizer.step()
         loss += loss.item()
-    print(f"Epoch: {epoch + 1}, Loss: {loss / len(train_loader):.4f}")
-
-model.eval()
-all_preds, all_labels = [], []
-print("Testing")
-with torch.no_grad():
-    for texts, labels in test_loader:
-        texts, labels = texts.to(device), labels.to(device)
-        preds = model(texts).squeeze()
-        preds = (preds > 0.5).float()
-        all_preds.extend(preds.tolist())
-        all_labels.extend(labels.tolist())
-
-acc = accuracy_score(all_labels, all_preds)
-print(f"Accuracy: {acc * 100:.2f}%")
+    model.eval()
+    all_preds, all_labels = [], []
+    with torch.no_grad():
+        for texts, labels in test_loader:
+            texts, labels = texts.to(device), labels.to(device)
+            preds = model(texts).squeeze()
+            preds = (preds > 0.5).float()
+            all_preds.extend(preds.tolist())
+            all_labels.extend(labels.tolist())
+    acc = accuracy_score(all_labels, all_preds)
+    print("----------------------------------------------------")
+    print(f"Epoch: {epoch + 1}, Loss: {loss / len(train_loader):.10f}")
+    print(f"Accuracy: {acc * 100:.2f}%")
+    print("----------------------------------------------------\n")
 
 torch.save(model.state_dict(), "./models/model.pt")
