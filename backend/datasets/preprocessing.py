@@ -14,10 +14,14 @@ counter = Counter()
 for token in df["tokens"]:
     counter.update(token)
 
-# Assign indices to most common word
+# Assign indices to most common words
+MAX_VOCAB_SIZE = 50000
 vocab = {"<PAD>": 0, "<UNK>": 1}
-for word, count in counter.most_common():
+for word, _ in counter.most_common(MAX_VOCAB_SIZE - len(vocab)):
     vocab[word] = len(vocab)
+
+# Convert tokens to input IDs using vocab
+df["input_ids"] = df["tokens"].apply(lambda tokens: [vocab.get(token, vocab["<UNK>"]) for token in tokens])
 
 
 def text_pipline(tokens):
