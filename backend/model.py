@@ -1,7 +1,9 @@
 import torch
-import pandas as pd
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.init as init
+import pandas as pd
+import time
 from collections import Counter
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
@@ -17,21 +19,23 @@ counter = Counter()
 for token in df["tokens"]:
     counter.update(token)
 
-# Assign indices to most common word
+# Assign indices to most common words
+MAX_VOCAB_SIZE = 50000
 vocab = {"<PAD>": 0, "<UNK>": 1}
-for word, count in counter.most_common():
+for word, _ in counter.most_common(MAX_VOCAB_SIZE - len(vocab)):
     vocab[word] = len(vocab)
 
 # Split data for training and testing
-train_text, test_text, train_label, text_label = train_test_split(df["input_ids"], df["sentiment"])
+train_text, test_text, train_label, test_label = train_test_split(df["input_ids"], df["sentiment"], random_state=42)
 
-# Create dataset
+# Create datasets
 train_dataset = SentimentDataset(train_text.tolist(), train_label.tolist(), vocab)
-test_dataset = SentimentDataset(test_text.tolist(), text_label.tolist(), vocab)
+test_dataset = SentimentDataset(test_text.tolist(), test_label.tolist(), vocab)
 
-# Get data loaders
-train_loader = train_dataset.get_dataloader()
-test_loader = test_dataset.get_dataloader()
+# Define batch size for dataloaders
+BATCH_SIZE = 8
+train_loader = train_dataset.get_dataloader(batch_size=BATCH_SIZE)
+test_loader = test_dataset.get_dataloader(batch_size=BATCH_SIZE)
 
 
 class SentimentModel(nn.Module):
@@ -41,6 +45,19 @@ class SentimentModel(nn.Module):
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)
         self.fc = nn.Linear(hidden_dim, 1)
         self.sigmoid = nn.Sigmoid()
+        self.init_weights()
+
+    def init_weights(self):
+        for name, param in self.named_parameters():
+            if "weight" in name:
+                if "embedding" in name:
+                    init.uniform_(param, -0.1, 0.1)
+                elif "lstm" in name:
+                    init.xavier_uniform_(param)
+                elif "fc" in name:
+                    init.xavier_uniform_(param)
+            elif "bias" in name:
+                init.constant_(param, 0)
 
     def forward(self, x):
         x = self.embedding(x)
@@ -48,40 +65,52 @@ class SentimentModel(nn.Module):
         return self.sigmoid(self.fc(hidden[-1]))
 
 
-# Create and train
-print("Initialising Model")
-model = SentimentModel(len(vocab), 100, 128)
+# Initialize Model
+print("Initializing Model")
+model = SentimentModel(len(vocab), embedding_dim=100, hidden_dim=128)
 criterion = nn.BCELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 model.to(device)
 criterion.to(device)
 
-print("Starting Evaluation\n")
-for epoch in range(10):
+acc = 0
+start_time, end_time = 0, 0
+# Training Loop
+print("Starting Training\n")
+for epoch in range(1):
+    start_time = time.time()
     model.train()
-    loss = 0
+    total_loss = 0
     for texts, labels in train_loader:
-        texts, labels = texts.to(device), labels.to(device)
+        texts, labels = texts.to(device), labels.to(device).float()
         optimizer.zero_grad()
         outputs = model(texts).squeeze()
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
-        loss += loss.item()
+        total_loss += loss.item()
+
+    # Evaluation
     model.eval()
     all_preds, all_labels = [], []
     with torch.no_grad():
         for texts, labels in test_loader:
-            texts, labels = texts.to(device), labels.to(device)
+            texts, labels = texts.to(device), labels.to(device).float()
             preds = model(texts).squeeze()
-            preds = (preds > 0.5).float()
+            preds = (preds > 0.5).int()  # Threshold at 0.5 for binary classification
             all_preds.extend(preds.tolist())
             all_labels.extend(labels.tolist())
+
     acc = accuracy_score(all_labels, all_preds)
+    end_time = time.time()
     print("----------------------------------------------------")
-    print(f"Epoch: {epoch + 1}, Loss: {loss / len(train_loader):.10f}")
+    print(f"Epoch: {epoch + 1}\nLoss: {total_loss / len(train_loader):.6f}")
     print(f"Accuracy: {acc * 100:.2f}%")
+    print(f"Time taken: {end_time - start_time:.2f}s")
     print("----------------------------------------------------\n")
 
-torch.save(model.state_dict(), "./models/model.pt")
+# Save Model
+if acc * 100 > 75:
+    torch.save(model.state_dict(), "./models/model.pt")
+    print("Model saved")
