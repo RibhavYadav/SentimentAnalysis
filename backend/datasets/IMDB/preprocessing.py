@@ -3,7 +3,7 @@ from collections import Counter
 from nltk.tokenize import word_tokenize
 
 # Load data and tokenize text
-df = pd.read_csv('./IMDB-Dataset.csv')
+df = pd.read_csv('IMDB-Dataset.csv')
 df["tokens"] = df["review"].apply(word_tokenize)
 
 # Assign values to the sentiment
