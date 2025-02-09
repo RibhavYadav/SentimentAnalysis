@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from collections import Counter
 from nltk.tokenize import word_tokenize
 
@@ -19,6 +20,8 @@ MAX_VOCAB_SIZE = 50000
 vocab = {"<PAD>": 0, "<UNK>": 1}
 for word, _ in counter.most_common(MAX_VOCAB_SIZE - len(vocab)):
     vocab[word] = len(vocab)
+
+np.save("vocab.npy", vocab)
 
 # Convert tokens to input IDs using vocab
 df["input_ids"] = df["tokens"].apply(lambda tokens: [vocab.get(token, vocab["<UNK>"]) for token in tokens])
