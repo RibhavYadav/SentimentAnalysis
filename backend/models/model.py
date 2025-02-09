@@ -1,10 +1,10 @@
 import torch
+import time
+import numpy as np
+import pandas as pd
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.init as init
-import pandas as pd
-import time
-from collections import Counter
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from datasets.data_model import SentimentDataset
@@ -12,18 +12,8 @@ from datasets.data_model import SentimentDataset
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load data
-df = pd.read_json("./datasets/IMDB-Processed.json", orient="records", lines=True)
-
-# Build vocabulary
-counter = Counter()
-for token in df["tokens"]:
-    counter.update(token)
-
-# Assign indices to most common words
-MAX_VOCAB_SIZE = 50000
-vocab = {"<PAD>": 0, "<UNK>": 1}
-for word, _ in counter.most_common(MAX_VOCAB_SIZE - len(vocab)):
-    vocab[word] = len(vocab)
+df = pd.read_json("../datasets/IMDB/IMDB-Processed.json", orient="records", lines=True)
+vocab = np.load("../datasets/IMDB/vocab.npy", allow_pickle=True).item()
 
 # Split data for training and testing
 train_text, test_text, train_label, test_label = train_test_split(df["input_ids"], df["sentiment"], random_state=42)
@@ -45,6 +35,7 @@ class SentimentModel(nn.Module):
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)
         self.fc = nn.Linear(hidden_dim, 1)
         self.sigmoid = nn.Sigmoid()
+        self.dropout = nn.Dropout(0.3)
         self.init_weights()
 
     def init_weights(self):
@@ -62,7 +53,8 @@ class SentimentModel(nn.Module):
     def forward(self, x):
         x = self.embedding(x)
         _, (hidden, _) = self.lstm(x)
-        return self.sigmoid(self.fc(hidden[-1]))
+        output = self.dropout(hidden[-1]) if self.training else hidden[-1]
+        return self.sigmoid(self.fc(output))
 
 
 # Initialize Model
@@ -78,7 +70,7 @@ acc = 0
 start_time, end_time = 0, 0
 # Training Loop
 print("Starting Training\n")
-for epoch in range(1):
+for epoch in range(10):
     start_time = time.time()
     model.train()
     total_loss = 0
@@ -98,7 +90,7 @@ for epoch in range(1):
         for texts, labels in test_loader:
             texts, labels = texts.to(device), labels.to(device).float()
             preds = model(texts).squeeze()
-            preds = (preds > 0.5).int()  # Threshold at 0.5 for binary classification
+            preds = (preds > 0.5).int()
             all_preds.extend(preds.tolist())
             all_labels.extend(labels.tolist())
 
@@ -110,7 +102,7 @@ for epoch in range(1):
     print(f"Time taken: {end_time - start_time:.2f}s")
     print("----------------------------------------------------\n")
 
-# Save Model
-if acc * 100 > 75:
-    torch.save(model.state_dict(), "./models/model.pt")
-    print("Model saved")
+    # Save Model
+    if acc * 100 > 90:
+        torch.save(model.state_dict(), "model.pt")
+        print("Model saved")
