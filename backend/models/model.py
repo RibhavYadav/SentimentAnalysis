@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from datasets.data_model import SentimentDataset
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda")
 
 # Load data
 df = pd.read_json("../datasets/IMDB/IMDB-Processed.json", orient="records", lines=True)
@@ -66,7 +66,7 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 model.to(device)
 criterion.to(device)
 
-acc = 0
+acc, max_acc = 0, 0
 start_time, end_time = 0, 0
 # Training Loop
 print("Starting Training\n")
@@ -103,6 +103,7 @@ for epoch in range(10):
     print("----------------------------------------------------\n")
 
     # Save Model
-    if acc * 100 > 90:
-        torch.save(model.state_dict(), "model.pt")
+    if acc > max_acc and acc * 100 > 90:
+        torch.save(model.state_dict(), "model_weights.pt")
         print("Model saved")
+        max_acc = max(max_acc, acc * 100)
