@@ -33,6 +33,8 @@ def text_pipline(tokens):
 
 # Indexed tokens for the reviews
 df["input_ids"] = df["tokens"].apply(text_pipline)
+df.drop("review", axis="columns", inplace=True)
+df.drop("tokens", axis="columns", inplace=True)
 
 # Save processed data
 df.to_json("IMDB-Processed.json", orient="records", lines=True)
