@@ -1,5 +1,6 @@
 import torch
 import time
+import warnings
 import numpy as np
 import pandas as pd
 import torch.nn as nn
@@ -8,7 +9,6 @@ import torch.nn.init as init
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from datasets.data_model import SentimentDataset
-import warnings
 
 # Suppress specific UserWarnings
 warnings.filterwarnings("ignore", category=UserWarning, message=".*To copy construct from a tensor.*")
@@ -18,7 +18,6 @@ device = torch.device("cuda")
 # Load data
 df = pd.read_json("../datasets/training_data.json", orient="records", lines=True)
 df = df.sample(frac=1, random_state=42).reset_index(drop=True)
-df = df[:300000]
 vocab = np.load("../datasets/vocab.npy", allow_pickle=True).item()
 
 # Split data for training and testing
@@ -29,7 +28,7 @@ train_dataset = SentimentDataset(train_text.tolist(), train_label.tolist(), voca
 test_dataset = SentimentDataset(test_text.tolist(), test_label.tolist(), vocab)
 
 # Define batch size for dataloaders
-BATCH_SIZE = 16
+BATCH_SIZE = 8
 train_loader = train_dataset.get_dataloader(batch_size=BATCH_SIZE)
 test_loader = test_dataset.get_dataloader(batch_size=BATCH_SIZE)
 
@@ -38,7 +37,7 @@ class SentimentModel(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_dim):
         super(SentimentModel, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers=2, batch_first=True, dropout=0.3)
         self.fc = nn.Linear(hidden_dim, 1)
         self.sigmoid = nn.Sigmoid()
         self.dropout = nn.Dropout(0.3)
@@ -48,7 +47,7 @@ class SentimentModel(nn.Module):
         for name, param in self.named_parameters():
             if "weight" in name:
                 if "embedding" in name:
-                    init.uniform_(param, -0.1, 0.1)
+                    init.orthogonal_(param)
                 elif "lstm" in name:
                     init.xavier_uniform_(param)
                 elif "fc" in name:
@@ -110,7 +109,7 @@ for epoch in range(10):
     print("----------------------------------------------------\n")
 
     # Save Model
-    if acc > max_acc and acc * 100 > 90:
+    if acc * 100 > max_acc and acc * 100 > 90:
         torch.save(model.state_dict(), "model_weights.pt")
         print("Model saved")
         max_acc = max(max_acc, acc * 100)
