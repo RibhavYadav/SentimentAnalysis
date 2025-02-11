@@ -4,14 +4,10 @@ from collections import Counter
 from nltk.tokenize import word_tokenize
 
 # Load processed datasets
-IMDB = pd.read_csv('./IMDB/IMDB-Dataset_processed.csv')
-tweets = pd.read_csv('./Tweets/tweet_data_processed.csv')
-
-# Combine the datasets
-dataset = pd.concat([IMDB, tweets], ignore_index=True)
+dataset = pd.read_csv('./IMDB/IMDB-Dataset_processed.csv')
 
 # Tokenize the text
-dataset["tokens"] = dataset["text"].apply(word_tokenize)
+dataset["tokens"] = dataset["text"].apply(lambda x: word_tokenize(x.lower()))
 
 # Build vocabulary for each token
 tokens = Counter()
