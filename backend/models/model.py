@@ -1,36 +1,9 @@
-import torch
 import time
-import warnings
-import numpy as np
-import pandas as pd
+import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.init as init
-from sklearn.model_selection import train_test_split
+import torch.optim as optim
 from sklearn.metrics import accuracy_score
-from datasets.data_model import SentimentDataset
-
-# Suppress specific UserWarnings
-warnings.filterwarnings("ignore", category=UserWarning, message=".*To copy construct from a tensor.*")
-
-device = torch.device("cuda")
-
-# Load data
-df = pd.read_json("../datasets/training_data.json", orient="records", lines=True)
-df = df.sample(frac=1, random_state=42).reset_index(drop=True)
-vocab = np.load("../datasets/vocab.npy", allow_pickle=True).item()
-
-# Split data for training and testing
-train_text, test_text, train_label, test_label = train_test_split(df["token_ids"], df["sentiment"], random_state=42)
-
-# Create datasets
-train_dataset = SentimentDataset(train_text.tolist(), train_label.tolist(), vocab)
-test_dataset = SentimentDataset(test_text.tolist(), test_label.tolist(), vocab)
-
-# Define batch size for dataloaders
-BATCH_SIZE = 8
-train_loader = train_dataset.get_dataloader(batch_size=BATCH_SIZE)
-test_loader = test_dataset.get_dataloader(batch_size=BATCH_SIZE)
 
 
 class SentimentModel(nn.Module):
@@ -61,55 +34,59 @@ class SentimentModel(nn.Module):
         output = self.dropout(hidden[-1]) if self.training else hidden[-1]
         return self.sigmoid(self.fc(output))
 
+    def train_test(self, train_loader, test_loader, epochs: int = 10,  save: bool = False):
+        # Get the GPU for training
+        device = torch.device("cuda")
 
-# Initialize Model
-print("Initializing Model")
-model = SentimentModel(len(vocab), embedding_dim=100, hidden_dim=128)
-criterion = nn.BCELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+        # Define loss and optimizer
+        criterion = nn.BCELoss()
+        optimizer = optim.Adam(self.parameters(), lr=0.001)
 
-# Move the model and its parameters to the device (GPU here)
-model.to(device)
-criterion.to(device)
+        # Move the model and the criterion to the GPU
+        self.to(device)
+        criterion.to(device)
 
-acc, max_acc = 0, 0
-start_time, end_time = 0, 0
-# Training Loop
-print("Starting Training\n")
-for epoch in range(10):
-    start_time = time.time()
-    model.train()
-    total_loss = 0
-    for texts, labels in train_loader:
-        texts, labels = texts.to(device), labels.to(device).float()
-        optimizer.zero_grad()
-        outputs = model(texts).squeeze()
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        total_loss += loss.item()
+        acc, max_acc = 0, 0
+        print("Starting Training\n")
+        for epoch in range(epochs):
+            start_time = time.time()
+            self.train()
+            total_loss = 0
 
-    # Evaluation
-    model.eval()
-    all_preds, all_labels = [], []
-    with torch.no_grad():
-        for texts, labels in test_loader:
-            texts, labels = texts.to(device), labels.to(device).float()
-            preds = model(texts).squeeze()
-            preds = (preds > 0.5).int()
-            all_preds.extend(preds.tolist())
-            all_labels.extend(labels.tolist())
+            # Training loop
+            for texts, labels in train_loader:
+                texts, labels = texts.to(device), labels.to(device).float()
+                optimizer.zero_grad()
+                outputs = self(texts).squeeze()
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+                total_loss += loss.item()
 
-    acc = accuracy_score(all_labels, all_preds)
-    end_time = time.time()
-    print("----------------------------------------------------")
-    print(f"Epoch: {epoch + 1}\nLoss: {total_loss / len(train_loader):.6f}")
-    print(f"Accuracy: {acc * 100:.2f}%")
-    print(f"Time taken: {end_time - start_time:.2f}s")
-    print("----------------------------------------------------\n")
+            # Evaluation loop
+            self.eval()
+            all_preds, all_labels = [], []
+            with torch.no_grad():
+                for texts, labels in test_loader:
+                    texts, labels = texts.to(device), labels.to(device).float()
+                    preds = self(texts).squeeze()
+                    preds = (preds > 0.5).int()
+                    all_preds.extend(preds.tolist())
+                    all_labels.extend(labels.tolist())
 
-    # Save Model
-    if acc * 100 > max_acc and acc * 100 > 90:
-        torch.save(model.state_dict(), "model_weights.pt")
-        print("Model saved")
-        max_acc = max(max_acc, acc * 100)
+            # Accuracy calculation
+            acc = accuracy_score(all_labels, all_preds)
+            end_time = time.time()
+
+            # Print statistics
+            print("----------------------------------------------------")
+            print(f"Epoch: {epoch + 1}\nLoss: {total_loss / len(train_loader):.6f}")
+            print(f"Accuracy: {acc * 100:.2f}%")
+            print(f"Time taken: {end_time - start_time:.2f}s")
+            print("----------------------------------------------------\n")
+
+            # Save Model
+            if save and acc * 100 > max_acc and acc * 100 > 90:
+                torch.save(self.state_dict(), "model_weights.pt")
+                print("Model saved")
+                max_acc = max(max_acc, acc * 100)
