@@ -7,13 +7,22 @@ from sklearn.metrics import accuracy_score
 
 
 class SentimentModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, lstm_layers: int = 2):
         super(SentimentModel, self).__init__()
+        # Neural network layers
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers=2, batch_first=True, dropout=0.3)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers=lstm_layers, batch_first=True, dropout=0.3)
         self.fc = nn.Linear(hidden_dim, 1)
         self.sigmoid = nn.Sigmoid()
+
+        # Dropout
         self.dropout = nn.Dropout(0.3)
+
+        # Use CUDA device if available
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.to(self.device)
+
+        # Initialize layer weights
         self.init_weights()
 
     def init_weights(self):
@@ -34,17 +43,14 @@ class SentimentModel(nn.Module):
         output = self.dropout(hidden[-1]) if self.training else hidden[-1]
         return self.sigmoid(self.fc(output))
 
-    def train_test(self, train_loader, test_loader, epochs: int = 10,  save: bool = False):
-        # Get the GPU for training
-        device = torch.device("cuda")
-
+    def train_test(self, train_loader, test_loader, epochs: int = 10, save: bool = False):
         # Define loss and optimizer
         criterion = nn.BCELoss()
         optimizer = optim.Adam(self.parameters(), lr=0.001)
 
         # Move the model and the criterion to the GPU
-        self.to(device)
-        criterion.to(device)
+        self.to(self.device)
+        criterion.to(self.device)
 
         acc, max_acc = 0, 0
         print("Starting Training\n")
@@ -55,7 +61,7 @@ class SentimentModel(nn.Module):
 
             # Training loop
             for texts, labels in train_loader:
-                texts, labels = texts.to(device), labels.to(device).float()
+                texts, labels = texts.to(self.device), labels.to(self.device).float()
                 optimizer.zero_grad()
                 outputs = self(texts).squeeze()
                 loss = criterion(outputs, labels)
@@ -68,7 +74,7 @@ class SentimentModel(nn.Module):
             all_preds, all_labels = [], []
             with torch.no_grad():
                 for texts, labels in test_loader:
-                    texts, labels = texts.to(device), labels.to(device).float()
+                    texts, labels = texts.to(self.device), labels.to(self.device).float()
                     preds = self(texts).squeeze()
                     preds = (preds > 0.5).int()
                     all_preds.extend(preds.tolist())
@@ -90,3 +96,14 @@ class SentimentModel(nn.Module):
                 torch.save(self.state_dict(), "model_weights.pt")
                 print("Model saved")
                 max_acc = max(max_acc, acc * 100)
+
+    def get_tokens(self, text: str, vocab) -> torch.Tensor:
+        tokens = [vocab.get(word, vocab["<UNK>"]) for word in text.lower().split()]
+        return torch.tensor(tokens, dtype=torch.long).unsqueeze(0).to(self.device)
+
+    def predict(self, text: str, vocab) -> str:
+        tokens = self.get_token(text, vocab)
+        with torch.no_grad():
+            prediction = self(tokens).squeeze().item()
+        sentiment = "Positive" if prediction > 0.5 else "Negative"
+        return sentiment
