@@ -1,16 +1,12 @@
-import torch
 import warnings
 import numpy as np
 import pandas as pd
 from model import SentimentModel
-
 from sklearn.model_selection import train_test_split
-
 from datasets.data_model import SentimentDataset
 
 # Suppress specific UserWarnings
 warnings.filterwarnings("ignore", category=UserWarning, message=".*To copy construct from a tensor.*")
-device = torch.device("cuda")
 
 # Load data
 df = pd.read_json("../datasets/training_data.json", orient="records", lines=True)
