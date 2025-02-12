@@ -57,7 +57,7 @@ class SentimentModel(nn.Module):
         for epoch in range(epochs):
             start_time = time.time()
             self.train()
-            total_loss = 0
+            training_loss = 0
 
             # Training loop
             for texts, labels in train_loader:
@@ -67,15 +67,17 @@ class SentimentModel(nn.Module):
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
-                total_loss += loss.item()
+                training_loss += loss.item()
 
             # Evaluation loop
             self.eval()
+            testing_loss = 0
             all_preds, all_labels = [], []
             with torch.no_grad():
                 for texts, labels in test_loader:
                     texts, labels = texts.to(self.device), labels.to(self.device).float()
                     preds = self(texts).squeeze()
+                    testing_loss += criterion(preds, labels).item()
                     preds = (preds > 0.5).int()
                     all_preds.extend(preds.tolist())
                     all_labels.extend(labels.tolist())
@@ -86,8 +88,8 @@ class SentimentModel(nn.Module):
 
             # Print statistics
             print("----------------------------------------------------")
-            print(f"Epoch: {epoch + 1}\nLoss: {total_loss / len(train_loader):.6f}")
-            print(f"Accuracy: {acc * 100:.2f}%")
+            print(f"Epoch: {epoch + 1}\nTraining Loss: {training_loss / len(train_loader):.6f}")
+            print(f"Testing Loss: {testing_loss/len(test_loader):.6f}\nAccuracy: {acc * 100:.2f}%")
             print(f"Time taken: {end_time - start_time:.2f}s")
             print("----------------------------------------------------\n")
 
