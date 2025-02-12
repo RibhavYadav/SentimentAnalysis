@@ -1,3 +1,8 @@
+datasets/Amazon_Reviews/train.csv
+datasets/Amazon_Reviews/test.csv
+
 datasets/IMDB/IMDB-Dataset_processed.csv
 datasets/Tweets/tweet_data_processed.csv
 datasets/training_data.json
+
+datasets/vocab.npy
