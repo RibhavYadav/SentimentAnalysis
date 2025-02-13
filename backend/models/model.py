@@ -104,7 +104,7 @@ class SentimentModel(nn.Module):
         return torch.tensor(tokens, dtype=torch.long).unsqueeze(0).to(self.device)
 
     def predict(self, text: str, vocab) -> str:
-        tokens = self.get_token(text, vocab)
+        tokens = self.get_tokens(text, vocab)
         with torch.no_grad():
             prediction = self(tokens).squeeze().item()
         sentiment = "Positive" if prediction > 0.5 else "Negative"
