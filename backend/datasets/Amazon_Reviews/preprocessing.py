@@ -7,10 +7,10 @@ df = pd.read_csv('amazon_reviews.csv', names=["sentiment", "review_title", "text
 df.drop("review_title", axis="columns", inplace=True)
 
 # Map sentiment values: Negative: 1 -> 0, Positive: 2 -> 1
-df["sentiment"] = df["sentiment"].map({1: 0, 2: 1})
+df["sentiment"] = df["sentiment"].map({1: -1, 2: 1})
 
 # Separate dataset into sentiment 0 and sentiment 1
-df_sentiment_0 = df[df["sentiment"] == 0]
+df_sentiment_0 = df[df["sentiment"] == -1]
 df_sentiment_1 = df[df["sentiment"] == 1]
 
 # Randomly sample 500,000 rows from each class

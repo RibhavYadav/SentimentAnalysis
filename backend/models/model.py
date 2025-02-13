@@ -13,7 +13,6 @@ class SentimentModel(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers=lstm_layers, batch_first=True, dropout=0.3)
         self.fc = nn.Linear(hidden_dim, 1)
-        self.sigmoid = nn.Sigmoid()
 
         # Dropout
         self.dropout = nn.Dropout(0.3)
@@ -41,7 +40,7 @@ class SentimentModel(nn.Module):
         x = self.embedding(x)
         _, (hidden, _) = self.lstm(x)
         output = self.dropout(hidden[-1]) if self.training else hidden[-1]
-        return self.sigmoid(self.fc(output))
+        return torch.tanh(self.fc(output))
 
     def train_test(self, train_loader, test_loader, epochs: int = 10, save: bool = False):
         # Define loss and optimizer
@@ -89,7 +88,7 @@ class SentimentModel(nn.Module):
             # Print statistics
             print("----------------------------------------------------")
             print(f"Epoch: {epoch + 1}\nTraining Loss: {training_loss / len(train_loader):.6f}")
-            print(f"Testing Loss: {testing_loss/len(test_loader):.6f}\nAccuracy: {acc * 100:.2f}%")
+            print(f"Testing Loss: {testing_loss / len(test_loader):.6f}\nAccuracy: {acc * 100:.2f}%")
             print(f"Time taken: {end_time - start_time:.2f}s")
             print("----------------------------------------------------\n")
 
@@ -103,9 +102,9 @@ class SentimentModel(nn.Module):
         tokens = [vocab.get(word, vocab["<UNK>"]) for word in text.lower().split()]
         return torch.tensor(tokens, dtype=torch.long).unsqueeze(0).to(self.device)
 
-    def predict(self, text: str, vocab) -> str:
+    def predict(self, text: str, vocab):
         tokens = self.get_tokens(text, vocab)
         with torch.no_grad():
             prediction = self(tokens).squeeze().item()
-        sentiment = "Positive" if prediction > 0.5 else "Negative"
-        return sentiment
+        sentiment = "Positive" if prediction > 0 else "Negative"
+        return sentiment, prediction
