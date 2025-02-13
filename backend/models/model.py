@@ -13,6 +13,7 @@ class SentimentModel(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers=lstm_layers, batch_first=True, dropout=0.3)
         self.fc = nn.Linear(hidden_dim, 1)
+        self.sigmoid = nn.Sigmoid()
 
         # Dropout
         self.dropout = nn.Dropout(0.3)
@@ -40,7 +41,7 @@ class SentimentModel(nn.Module):
         x = self.embedding(x)
         _, (hidden, _) = self.lstm(x)
         output = self.dropout(hidden[-1]) if self.training else hidden[-1]
-        return torch.tanh(self.fc(output))
+        return self.sigmoid(self.fc(output))
 
     def train_test(self, train_loader, test_loader, epochs: int = 10, save: bool = False):
         # Define loss and optimizer
@@ -106,5 +107,5 @@ class SentimentModel(nn.Module):
         tokens = self.get_tokens(text, vocab)
         with torch.no_grad():
             prediction = self(tokens).squeeze().item()
-        sentiment = "Positive" if prediction > 0 else "Negative"
+        sentiment = "Positive" if prediction > 0.5 else "Negative"
         return sentiment, prediction

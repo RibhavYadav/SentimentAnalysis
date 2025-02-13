@@ -21,7 +21,7 @@ train_dataset = SentimentDataset(train_text.tolist(), train_label.tolist(), voca
 test_dataset = SentimentDataset(test_text.tolist(), test_label.tolist(), vocab)
 
 # Define batch size for dataloaders
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 train_loader = train_dataset.get_dataloader(batch_size=BATCH_SIZE)
 test_loader = test_dataset.get_dataloader(batch_size=BATCH_SIZE)
 
