@@ -21,13 +21,13 @@ train_dataset = SentimentDataset(train_text.tolist(), train_label.tolist(), voca
 test_dataset = SentimentDataset(test_text.tolist(), test_label.tolist(), vocab)
 
 # Define batch size for dataloaders
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 train_loader = train_dataset.get_dataloader(batch_size=BATCH_SIZE)
 test_loader = test_dataset.get_dataloader(batch_size=BATCH_SIZE)
 
 # Initialize Model
 print("Initializing Model")
-model = SentimentModel(len(vocab), embedding_dim=100, hidden_dim=128)
+model = SentimentModel(len(vocab), embedding_dim=100, hidden_dim=128, threshold=0.8)
 
 # Train the model
 model.train_test(train_loader, test_loader, save=True)

@@ -7,7 +7,7 @@ from sklearn.metrics import accuracy_score
 
 
 class SentimentModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, lstm_layers: int = 2):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, threshold: float = 0.5, lstm_layers: int = 2):
         super(SentimentModel, self).__init__()
         # Neural network layers
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
@@ -17,6 +17,7 @@ class SentimentModel(nn.Module):
 
         # Dropout
         self.dropout = nn.Dropout(0.3)
+        self.threshold = threshold
 
         # Use CUDA device if available
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -78,7 +79,7 @@ class SentimentModel(nn.Module):
                     texts, labels = texts.to(self.device), labels.to(self.device).float()
                     preds = self(texts).squeeze()
                     testing_loss += criterion(preds, labels).item()
-                    preds = (preds > 0.5).int()
+                    preds = (preds > self.threshold).int()
                     all_preds.extend(preds.tolist())
                     all_labels.extend(labels.tolist())
 
@@ -107,5 +108,5 @@ class SentimentModel(nn.Module):
         tokens = self.get_tokens(text, vocab)
         with torch.no_grad():
             prediction = self(tokens).squeeze().item()
-        sentiment = "Positive" if prediction > 0.5 else "Negative"
+        sentiment = "Positive" if prediction > self.threshold else "Negative"
         return sentiment, prediction
