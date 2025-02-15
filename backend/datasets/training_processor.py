@@ -30,7 +30,7 @@ for word, _ in tokens.most_common(MAX_VOCAB_SIZE - len(vocab)):
     vocab[word] = len(vocab)
 print("Vocab built")
 
-# Convert words to token IDs (use int16 to reduce memory usage)
+# Convert words to token IDs (use uint16 to reduce memory usage)
 dataset["token_ids"] = dataset["tokens"].swifter.apply(
     lambda tokens_list: np.array([vocab.get(token, vocab["<UNK>"]) for token in tokens_list], dtype=np.uint16)
 )
