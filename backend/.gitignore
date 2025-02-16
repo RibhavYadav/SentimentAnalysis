@@ -1,3 +1,5 @@
+../frontend
+
 datasets/Amazon_Reviews/amazon_reviews.csv
 datasets/Amazon_Reviews/test.csv
 datasets/Amazon_Reviews/amazon_reviews_processed.csv
