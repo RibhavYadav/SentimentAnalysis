@@ -30,4 +30,4 @@ print("Initializing Model")
 model = SentimentModel(len(vocab), embedding_dim=100, hidden_dim=128, threshold=0.8)
 
 # Train the model
-model.train_test(train_loader, test_loader, save=True)
+model.train_test(train_loader, test_loader, BATCH_SIZE, df.shape[0], save=True)
