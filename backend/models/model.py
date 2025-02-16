@@ -44,7 +44,7 @@ class SentimentModel(nn.Module):
         output = self.dropout(hidden[-1]) if self.training else hidden[-1]
         return self.sigmoid(self.fc(output))
 
-    def train_test(self, train_loader, test_loader, epochs: int = 10, save: bool = False):
+    def train_test(self, train_loader, test_loader, batch_size: int, inputs: int, epochs: int = 10, save: bool = False):
         # Define loss and optimizer
         criterion = nn.BCELoss()
         optimizer = optim.Adam(self.parameters(), lr=0.001)
@@ -53,15 +53,23 @@ class SentimentModel(nn.Module):
         self.to(self.device)
         criterion.to(self.device)
 
+        # Batches and accuracy
+        total_batches = inputs // batch_size
         acc, max_acc = 0, 0
         print("Starting Training\n")
         for epoch in range(epochs):
             start_time = time.time()
             self.train()
             training_loss = 0
+            batch = 0
 
             # Training loop
             for texts, labels in train_loader:
+                batch_time = time.time() - start_time
+                finish_time = (batch_time / (batch + 1)) * (total_batches - (batch + 1))
+                print(
+                    f"\rBatch {batch + 1} / {total_batches} | Time: {batch_time:.2f} | Expected Time: {finish_time:.2f}",
+                    end="")
                 texts, labels = texts.to(self.device), labels.to(self.device).float()
                 optimizer.zero_grad()
                 outputs = self(texts).squeeze()
@@ -69,6 +77,7 @@ class SentimentModel(nn.Module):
                 loss.backward()
                 optimizer.step()
                 training_loss += loss.item()
+                batch += 1
 
             # Evaluation loop
             self.eval()
@@ -76,6 +85,11 @@ class SentimentModel(nn.Module):
             all_preds, all_labels = [], []
             with torch.no_grad():
                 for texts, labels in test_loader:
+                    batch_time = time.time() - start_time
+                    finish_time = (batch_time / (batch + 1)) * (total_batches - (batch + 1))
+                    print(
+                        f"\rBatch {batch + 1} / {total_batches} | Time: {batch_time:.2f} | Expected Time: {finish_time:.2f}",
+                        end="")
                     texts, labels = texts.to(self.device), labels.to(self.device).float()
                     preds = self(texts).squeeze()
                     testing_loss += criterion(preds, labels).item()
@@ -88,7 +102,7 @@ class SentimentModel(nn.Module):
             end_time = time.time()
 
             # Print statistics
-            print("----------------------------------------------------")
+            print("\n----------------------------------------------------")
             print(f"Epoch: {epoch + 1}\nTraining Loss: {training_loss / len(train_loader):.6f}")
             print(f"Testing Loss: {testing_loss / len(test_loader):.6f}\nAccuracy: {acc * 100:.2f}%")
             print(f"Time taken: {end_time - start_time:.2f}s")
