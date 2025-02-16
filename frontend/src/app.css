@@ -2,6 +2,7 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 @import "./lib/button.css";
+@import "./lib/word_display.css";
 
 body {
     font-family: "Libre Franklin", serif;
