@@ -9,10 +9,21 @@ from sklearn.metrics import accuracy_score
 class SentimentModel(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_dim, threshold: float = 0.5, lstm_layers: int = 2):
         super(SentimentModel, self).__init__()
-        # Neural network layers
+        # Embedding Layer
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers=lstm_layers, batch_first=True, dropout=0.3)
-        self.fc = nn.Linear(hidden_dim, 1)
+
+        # Bidirectional LSTM Layer
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers=lstm_layers, batch_first=True, dropout=0.3,
+                            bidirectional=True)
+
+        # Attention Mechanism
+        self.attn = nn.Linear(hidden_dim * 2, 1)
+        self.softmax = nn.Softmax(dim=1)
+
+        # Fully Connected Layer
+        self.fc = nn.Linear(hidden_dim * 2, 1)
+
+        # Activation
         self.sigmoid = nn.Sigmoid()
 
         # Dropout
@@ -33,15 +44,25 @@ class SentimentModel(nn.Module):
                     init.orthogonal_(param)
                 elif "lstm" in name:
                     init.xavier_uniform_(param)
-                elif "fc" in name:
+                elif "fc" in name or "attn" in name:
                     init.xavier_uniform_(param)
             elif "bias" in name:
                 init.constant_(param, 0)
 
     def forward(self, x):
+        # Embedding
         x = self.embedding(x)
-        _, (hidden, _) = self.lstm(x)
-        output = self.dropout(hidden[-1]) if self.training else hidden[-1]
+
+        # LSTM
+        lstm_out, _ = self.lstm(x)
+
+        # Attention scores
+        attn_scores = self.attn(lstm_out)
+        attn_scores_weighted = self.softmax(attn_scores)
+        context = torch.sum(attn_scores_weighted * lstm_out, dim=1)
+
+        # Final output
+        output = self.dropout(context) if self.training else context
         return self.sigmoid(self.fc(output))
 
     def train_test(self, train_loader, test_loader, batch_size: int, inputs: int, epochs: int = 10, save: bool = False):
@@ -96,6 +117,7 @@ class SentimentModel(nn.Module):
                     preds = (preds > self.threshold).int()
                     all_preds.extend(preds.tolist())
                     all_labels.extend(labels.tolist())
+                    batch += 1
 
             # Accuracy calculation
             acc = accuracy_score(all_labels, all_preds)
