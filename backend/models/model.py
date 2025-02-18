@@ -136,13 +136,21 @@ class SentimentModel(nn.Module):
                 print("Model saved")
                 max_acc = max(max_acc, acc * 100)
 
-    def get_tokens(self, text: str, vocab) -> torch.Tensor:
+    def word_tokens(self, text: str, vocab) -> torch.Tensor:
         tokens = [vocab.get(word, vocab["<UNK>"]) for word in text.lower().split()]
         return torch.tensor(tokens, dtype=torch.long).unsqueeze(0).to(self.device)
 
     def predict(self, text: str, vocab):
-        tokens = self.get_tokens(text, vocab)
-        with torch.no_grad():
-            prediction = self(tokens).squeeze().item()
-        sentiment = "Positive" if prediction > self.threshold else "Negative"
-        return sentiment, prediction
+        tokens = self.word_tokens(text, vocab)
+        embedding = self.embedding(tokens)
+        lstm_out, _ = self.lstm(embedding)
+        attn_scores = self.attn(lstm_out)
+        attn_scores_weighted = self.softmax(attn_scores)
+        context = torch.sum(attn_scores_weighted * lstm_out, dim=1)
+        sentiment_score = self.sigmoid(self.fc(context))
+
+        word_scores = attn_scores_weighted.squeeze().tolist()
+        words = text.split()
+        word_scores = {word: round(score, 3) for word, score in zip(words, word_scores)}
+        word_scores = sorted(word_scores.items(), key=lambda x: x[1], reverse=True)
+        return word_scores[:10], sentiment_score.item()
