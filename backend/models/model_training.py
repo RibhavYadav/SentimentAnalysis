@@ -9,6 +9,7 @@ from datasets.data_model import SentimentDataset
 warnings.filterwarnings("ignore", category=UserWarning, message=".*To copy construct from a tensor.*")
 
 # Load data
+print("Loading Data")
 df = pd.read_json("../datasets/training_data.json", orient="records", lines=True)
 df = df.sample(frac=1, random_state=42).reset_index(drop=True)
 vocab = np.load("../datasets/vocab.npy", allow_pickle=True).item()
@@ -30,4 +31,4 @@ print("Initializing Model")
 model = SentimentModel(len(vocab), embedding_dim=100, hidden_dim=128, threshold=0.8)
 
 # Train the model
-model.train_test(train_loader, test_loader, BATCH_SIZE, df.shape[0], save=True)
+model.train_test(train_loader, test_loader, save=True)
