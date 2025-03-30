@@ -2,8 +2,11 @@ datasets/Amazon_Reviews/amazon_reviews.csv
 datasets/Amazon_Reviews/test.csv
 datasets/Amazon_Reviews/amazon_reviews_processed.csv
 
+datasets/IMDB/IMDB-Dataset.csv
 datasets/IMDB/IMDB-Dataset_processed.csv
 datasets/Tweets/tweet_data_processed.csv
 datasets/training_data.json
 
 datasets/vocab.npy
+
+models/model_weights.pt
